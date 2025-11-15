@@ -1,0 +1,17 @@
+[project]
+name = "fgdb-mcp-server"
+version = "0.1.0"
+description = "A Model Context Protocol (MCP) server for interacting with Esri File Geodatabases (FGDB) through ArcPy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.21.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+fgdb-mcp-server = "fgdb_mcp_server:main"
+
