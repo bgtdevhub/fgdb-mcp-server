@@ -4,6 +4,8 @@ import os
 from unittest.mock import patch
 from utils.config import ServerConfig, get_config, set_config
 
+pytestmark = pytest.mark.unit
+
 
 class TestServerConfig:
     """Tests for ServerConfig class."""

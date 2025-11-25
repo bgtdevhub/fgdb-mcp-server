@@ -120,7 +120,9 @@ class TestFieldSchemaService:
         service = FieldSchemaService(workspace_manager)
         valid_fields = service.validate_fields("TestDataset", ["Field1", "Field2"])
         
-        assert valid_fields == ["Field1", "Field2"]
+        # Sets don't preserve order, so compare as sets
+        assert set(valid_fields) == {"Field1", "Field2"}
+        assert len(valid_fields) == 2
     
     @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
     @patch('gdb_ops.gdb.arcpy')
