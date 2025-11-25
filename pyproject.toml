@@ -5,13 +5,64 @@ description = "A Model Context Protocol (MCP) server for interacting with Esri F
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "httpx>=0.28.1",
     "mcp[cli]>=1.21.0",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling",]
 build-backend = "hatchling.build"
 
 [project.scripts]
 fgdb-mcp-server = "fgdb_mcp_server:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+]
+
+[tool.coverage.run]
+source = ["fgdb_toolserver.py", "gdb_ops", "utils"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+precision = 2
+show_missing = true
+skip_covered = false
+fail_under = 80
 

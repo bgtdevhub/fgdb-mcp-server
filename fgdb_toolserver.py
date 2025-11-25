@@ -1,4 +1,5 @@
 import logging
+from functools import wraps
 from typing import Annotated, Any, Dict, List, Optional
 from pydantic import Field
 from mcp.server.fastmcp import FastMCP
@@ -16,6 +17,36 @@ from utils.config import get_config, ServerConfig
 # Load configuration and setup logging
 config = get_config()
 config.setup_logging()
+
+# API Versioning
+API_VERSION = "v1"
+SUPPORTED_VERSIONS = ["v1"]
+
+
+def require_feature_flag(feature_name: str):
+    """Decorator to require a feature flag for an endpoint.
+    
+    Note: This decorator is kept for future experimental features.
+    Mutating operations (insert, update, delete, add_field, delete_field)
+    do not use feature flags - they rely on the safety confirmation system.
+    
+    Args:
+        feature_name: Name of the feature flag to check
+        
+    Raises:
+        OperationBlockedError: If the feature is disabled
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if not server.config.is_feature_enabled(feature_name):
+                raise OperationBlockedError(
+                    f"Feature '{feature_name}' is disabled in this configuration. "
+                    f"Set FGDB_FEATURE_{feature_name.upper()}=true to enable."
+                )
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 try:
     import arcpy  # type: ignore
@@ -75,7 +106,9 @@ mcp = FastMCP("fgdb-mcp-server")
 
 
 # Module-level functions that FastMCP can call - they access the server instance
-@mcp.tool(description="Establishes a connection to the given FGDB path. Requires a full absolute path.")
+@mcp.tool(
+    description=f"Establishes a connection to the given FGDB path. Requires a full absolute path. [API Version: {API_VERSION}]"
+)
 def set_database_connection(
     gdb_path: Annotated[str, Field(description="Full absolute path to the file geodatabase", examples=["C:\\data\\mygeodatabase.gdb"])]
 ) -> Dict[str, str]:
@@ -95,7 +128,9 @@ def set_database_connection(
         return {"status": "error", "message": str(ex)}
 
 
-@mcp.tool(description="Lists all feature classes available in the connected file geodatabase.")
+@mcp.tool(
+    description=f"Lists all feature classes available in the connected file geodatabase. [API Version: {API_VERSION}]"
+)
 def list_all_feature_classes() -> List[str]:
     logging.info("Listing all feature classes")
     try:
@@ -107,7 +142,9 @@ def list_all_feature_classes() -> List[str]:
         raise
 
 
-@mcp.tool(description="Returns metadata and schema information for a specified dataset (feature class or table).")
+@mcp.tool(
+    description=f"Returns metadata and schema information for a specified dataset (feature class or table). [API Version: {API_VERSION}]"
+)
 def describe(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to describe")]
 ) -> Dict[str, Any]:
@@ -121,7 +158,9 @@ def describe(
         raise
 
 
-@mcp.tool(description="Returns the total number of records in a specified dataset.")
+@mcp.tool(
+    description=f"Returns the total number of records in a specified dataset. [API Version: {API_VERSION}]"
+)
 def count(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to count records from")]
 ) -> Dict[str, int]:
@@ -135,7 +174,9 @@ def count(
         raise
 
 
-@mcp.tool(description="Queries records from a dataset with optional filtering, field selection, and pagination support.")
+@mcp.tool(
+    description=f"Queries records from a dataset with optional filtering, field selection, and pagination support. [API Version: {API_VERSION}]"
+)
 def select(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to query")],
     where: Annotated[Optional[str], Field(default=None, description="SQL WHERE clause to filter records (e.g., 'OBJECTID > 100')")] = None,
@@ -153,19 +194,22 @@ def select(
         if start > 0:
             limit = end
         result = server.get_tools().select(dataset, where, fields, limit)
-        data_count = len(result["data"][start:end])
+        data_count = len(result["data"])
         logging.info(f"Selected {data_count} records from dataset {dataset} (has_more: {result['hasMore']})")
         return {
             "data": result["data"][start:end],
             "limit": limit,
-            "has_more": result["hasMore"]
+            "has_more": result["hasMore"],
+            "total_records":data_count
         }
     except Exception as ex:
         logging.error(f"Error selecting from dataset {dataset}: {ex}")
         raise
 
 
-@mcp.tool(description="Deletes records from a dataset based on a WHERE clause. May require confirmation for high-risk operations.")
+@mcp.tool(
+    description=f"Deletes records from a dataset based on a WHERE clause. May require confirmation for high-risk operations. [API Version: {API_VERSION}]"
+)
 def delete(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to delete records from")],
     where: Annotated[str, Field(description="SQL WHERE clause to specify which records to delete (e.g., 'OBJECTID = 1')")]
@@ -174,7 +218,7 @@ def delete(
     result = server.get_tools().delete(dataset, where)
     
     if result.requires_confirmation:
-        logging.warning(f"Delete operation requires confirmation for dataset: {dataset}, token: {result.confirmation_token}")
+        logging.warning(f"Delete operation requires confirmation for dataset: {dataset}")
         return {
             "status": "confirmation_required",
             "confirmation_token": result.confirmation_token,
@@ -190,7 +234,9 @@ def delete(
     return {"status": "ok", "deleted": result.data}
 
 
-@mcp.tool(description="Inserts new records into a dataset. May require confirmation for medium-risk operations.")
+@mcp.tool(
+    description=f"Inserts new records into a dataset. May require confirmation for medium-risk operations. [API Version: {API_VERSION}]"
+)
 def insert(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to insert records into")],
     rows: Annotated[int, Field(description="Number of rows to insert", ge=1)],
@@ -205,7 +251,7 @@ def insert(
     result = server.get_tools().insert(dataset, rows, fields, values)
     
     if result.requires_confirmation:
-        logging.warning(f"Insert operation requires confirmation for dataset: {dataset}, token: {result.confirmation_token}")
+        logging.warning(f"Insert operation requires confirmation for dataset: {dataset}")
         return {
             "status": "confirmation_required",
             "confirmation_token": result.confirmation_token,
@@ -221,7 +267,9 @@ def insert(
     return {"status": "ok", "inserted": result.data}
 
 
-@mcp.tool(description="Updates existing records in a dataset based on WHERE clause. May require confirmation for medium-risk operations.")
+@mcp.tool(
+    description=f"Updates existing records in a dataset based on WHERE clause. May require confirmation for medium-risk operations. [API Version: {API_VERSION}]"
+)
 def update(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to update records in")],
     where: Annotated[str, Field(description="SQL WHERE clause to specify which records to update (e.g., 'OBJECTID = 1')")],
@@ -235,7 +283,7 @@ def update(
     result = server.get_tools().update(dataset, updates, where)
     
     if result.requires_confirmation:
-        logging.warning(f"Update operation requires confirmation for dataset: {dataset}, token: {result.confirmation_token}")
+        logging.warning(f"Update operation requires confirmation for dataset: {dataset}")
         return {
             "status": "confirmation_required",
             "confirmation_token": result.confirmation_token,
@@ -251,7 +299,9 @@ def update(
     return {"status": "ok", "updated": result.data}
 
 
-@mcp.tool(description="Adds a new field to a dataset schema. May require confirmation for medium-risk operations.")
+@mcp.tool(
+    description=f"Adds a new field to a dataset schema. May require confirmation for medium-risk operations. [API Version: {API_VERSION}]"
+)
 def add_field(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to add the field to")],
     name: Annotated[str, Field(description="Name of the new field to add")],
@@ -266,7 +316,7 @@ def add_field(
     result = server.get_tools().add_field(dataset, name, field_type, length)
     
     if result.requires_confirmation:
-        logging.warning(f"Add field operation requires confirmation for dataset: {dataset}, token: {result.confirmation_token}")
+        logging.warning(f"Add field operation requires confirmation for dataset: {dataset}")
         return {
             "status": "confirmation_required",
             "confirmation_token": result.confirmation_token,
@@ -282,7 +332,9 @@ def add_field(
     return {"status": "ok"}
 
 
-@mcp.tool(description="Deletes a field from a dataset schema. May require confirmation for high-risk operations.")
+@mcp.tool(
+    description=f"Deletes a field from a dataset schema. May require confirmation for high-risk operations. [API Version: {API_VERSION}]"
+)
 def delete_field(
     dataset: Annotated[str, Field(description="Name of the dataset (feature class or table) to delete the field from")],
     name: Annotated[str, Field(description="Name of the field to delete")]
@@ -295,7 +347,7 @@ def delete_field(
     result = server.get_tools().delete_field(dataset, name)
     
     if result.requires_confirmation:
-        logging.warning(f"Delete field operation requires confirmation for dataset: {dataset}, token: {result.confirmation_token}")
+        logging.warning(f"Delete field operation requires confirmation for dataset: {dataset}")
         return {
             "status": "confirmation_required",
             "confirmation_token": result.confirmation_token,
@@ -311,7 +363,9 @@ def delete_field(
     return {"status": "ok"}
 
 
-@mcp.tool(description="Confirms and executes a pending high-risk or medium-risk operation using a confirmation token received from the initial operation request.")
+@mcp.tool(
+    description=f"Confirms and executes a pending high-risk or medium-risk operation using a confirmation token received from the initial operation request. [API Version: {API_VERSION}]"
+)
 def confirm_operation(
     token: Annotated[str, Field(description="The confirmation token received from the initial operation request")],
     endpoint: Annotated[str, Field(description="The endpoint that was originally called (e.g., 'delete', 'insert', 'update')")],

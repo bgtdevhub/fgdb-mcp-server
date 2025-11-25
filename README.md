@@ -157,36 +157,108 @@ The server can be configured using environment variables:
 
 ### Environment Variables
 
+#### Database Settings
 - **`FGDB_MAX_SELECT_LIMIT`**: Maximum number of records to return in a single select query (default: `50000`)
+
+#### Logging Settings
 - **`FGDB_LOG_FILE`**: Path to the log file (default: `fgdb_server.log`)
 - **`FGDB_LOG_LEVEL`**: Logging level - DEBUG, INFO, WARNING, ERROR (default: `INFO`)
 - **`FGDB_LOG_MAX_BYTES`**: Maximum log file size in bytes before rotation (default: `10485760` = 10MB)
 - **`FGDB_LOG_BACKUP_COUNT`**: Number of backup log files to keep (default: `5`)
 
+#### API Versioning
+- **`FGDB_API_VERSION`**: Current API version (default: `v1`)
+- **`FGDB_SUPPORTED_VERSIONS`**: Comma-separated list of supported API versions (default: `v1`)
+
+#### Feature Flags
+- **`FGDB_FEATURE_EXPERIMENTAL`**: Enable experimental features (default: `false`)
+
+**Note**: Mutating operations (insert, update, delete, add_field, delete_field) do not use feature flags. They are controlled by the safety confirmation system, which requires explicit user confirmation for each operation.
+
 ### Example Configuration
 
 ```powershell
-# Set environment variables
+# Database settings
 $env:FGDB_MAX_SELECT_LIMIT = "20000"
+
+# Logging settings
 $env:FGDB_LOG_LEVEL = "DEBUG"
 $env:FGDB_LOG_FILE = "logs/fgdb_server.log"
 
+# API versioning
+$env:FGDB_API_VERSION = "v1"
+$env:FGDB_SUPPORTED_VERSIONS = "v1"
+
+# Feature flags - experimental features (optional)
+$env:FGDB_FEATURE_EXPERIMENTAL = "false"
+```
+
+## API Versioning
+
+This server currently supports **API Version 1 (v1)**. All endpoints are part of the v1 API.
+
+### Version Information
+- **Current Version**: v1
+- **Supported Versions**: v1
+- **Deprecation Policy**: Endpoints will be marked as deprecated at least one version before removal
+
+### Version Configuration
+
+The API version can be configured via environment variables:
+
+```bash
+# Set the default API version (default: v1)
+$env:FGDB_API_VERSION = "v1"
+
+# Specify supported API versions (comma-separated, default: v1)
+$env:FGDB_SUPPORTED_VERSIONS = "v1"
+```
+
+## Feature Flags
+
+The server supports feature flags for experimental features. Mutating operations (insert, update, delete, add_field, delete_field) do not use feature flags - they are controlled by the **safety confirmation system**, which requires explicit user confirmation for each operation.
+
+### Available Feature Flags
+
+| Feature | Environment Variable | Default | Description |
+|---------|---------------------|---------|-------------|
+| Experimental | `FGDB_FEATURE_EXPERIMENTAL` | `false` | Enable experimental features |
+
+### Why No Feature Flags for Mutating Operations?
+
+Mutating operations are protected by the **safety confirmation system**:
+- All mutating operations require explicit user confirmation via tokens
+- The agent cannot bypass the confirmation requirement
+- User confirmation is the authorization mechanism
+- Feature flags would be redundant since confirmation already provides the necessary control
+
+### Configuring Feature Flags
+
+Feature flags can be set via environment variables:
+
+```bash
+# Enable experimental features (if any)
+$env:FGDB_FEATURE_EXPERIMENTAL = "true"
 ```
 
 ## API Reference
 
 The server provides 11 MCP tools for geodatabase operations:
 
+### API Version 1 (v1) - Current
+
+All endpoints below are part of the v1 API:
+
 ### Connection & Discovery
 
-- **`set_database_connection`**: Establishes a connection to a File Geodatabase using an absolute path
-- **`list_all_feature_classes`**: Lists all feature classes available in the connected geodatabase
-- **`describe`**: Returns metadata and schema information for a specified dataset (feature class or table)
-- **`count`**: Returns the total number of records in a specified dataset
+- **`set_database_connection`** (v1): Establishes a connection to a File Geodatabase using an absolute path
+- **`list_all_feature_classes`** (v1): Lists all feature classes available in the connected geodatabase
+- **`describe`** (v1): Returns metadata and schema information for a specified dataset (feature class or table)
+- **`count`** (v1): Returns the total number of records in a specified dataset
 
 ### Data Querying
 
-- **`select`**: Queries records from a dataset with optional filtering, field selection, and pagination support
+- **`select`** (v1): Queries records from a dataset with optional filtering, field selection, and pagination support
   - Supports SQL WHERE clauses
   - Field selection (returns all fields if not specified)
   - Pagination with configurable page size
@@ -194,18 +266,18 @@ The server provides 11 MCP tools for geodatabase operations:
 
 ### Data Modification
 
-- **`insert`**: Inserts new records into a dataset (requires confirmation for medium-risk operations)
-- **`update`**: Updates existing records based on WHERE clause (requires confirmation for medium-risk operations)
-- **`delete`**: Deletes records from a dataset based on WHERE clause (requires confirmation for high-risk operations)
+- **`insert`** (v1): Inserts new records into a dataset (requires confirmation for medium-risk operations)
+- **`update`** (v1): Updates existing records based on WHERE clause (requires confirmation for medium-risk operations)
+- **`delete`** (v1): Deletes records from a dataset based on WHERE clause (requires confirmation for high-risk operations)
 
 ### Schema Management
 
-- **`add_field`**: Adds a new field to a dataset schema (requires confirmation for medium-risk operations)
-- **`delete_field`**: Deletes a field from a dataset schema (requires confirmation for high-risk operations)
+- **`add_field`** (v1): Adds a new field to a dataset schema (requires confirmation for medium-risk operations)
+- **`delete_field`** (v1): Deletes a field from a dataset schema (requires confirmation for high-risk operations)
 
 ### Safety & Confirmation
 
-- **`confirm_operation`**: Confirms and executes pending high-risk or medium-risk operations using a confirmation token
+- **`confirm_operation`** (v1): Confirms and executes pending high-risk or medium-risk operations using a confirmation token
 
 ### Safety System
 
@@ -274,7 +346,7 @@ We welcome contributions from the open source community! This project is designe
 ### Code Structure
 
 ```
-fgdb-server-python/
+fgdb-mcp-server/
 ├── fgdb_toolserver.py    # Main MCP server and tool definitions
 ├── gdb_ops/
 │   ├── gdb.py            # FileGDBBackend - ArcPy operations
@@ -282,7 +354,8 @@ fgdb-server-python/
 ├── utils/
 │   ├── config.py         # Configuration management
 │   ├── exceptions.py     # Custom exception classes
-│   └── safety.py         # Safety manager for confirmation workflow
+│   ├── safety.py         # Safety manager for confirmation workflow
+│   └── validation.py     # Input validation utilities
 ├── dtos/
 │   └── requestobjects.py # Data transfer objects
 └── README.md

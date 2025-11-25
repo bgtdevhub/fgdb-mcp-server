@@ -3,11 +3,6 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 import uuid
 
-
-class Connection:
-    connection_string: Optional[str] = None
-
-
 class RiskLevel(str, Enum):
     LOW = "low"
     MEDIUM = "medium"

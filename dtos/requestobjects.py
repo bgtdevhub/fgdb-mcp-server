@@ -3,8 +3,6 @@ from pydantic import BaseModel
 
 class Connection:
     connection_string: Optional[str] = None
-class Connection_Object:
-    connection_str:str =None
 
 class OperationResult(BaseModel):
     """Result of an operation that may require confirmation."""
