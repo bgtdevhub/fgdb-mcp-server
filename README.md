@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server for interacting with Esri File Geodatabases (FGDB) through ArcPy. This server provides a comprehensive set of tools for querying, modifying, and managing geodatabase datasets via the MCP protocol.
 
+**Version**: 0.1.0
+
 See the [MCP Quickstart](https://modelcontextprotocol.io/quickstart) tutorial for more information about the Model Context Protocol.
 
 ## Table of Contents
@@ -47,7 +49,7 @@ ArcPy is provided by ArcGIS Pro and is only available in the ArcGIS Pro conda en
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd fgdb-server-python
+   cd fgdb-mcp-server
    ```
 
 2. **Set up ArcPy environment**:
@@ -91,7 +93,7 @@ To use this server with an MCP client, add the following configuration to your M
       "type": "stdio",
       "command": "C:\\Program Files\\ArcGIS\\Pro\\bin\\Python\\envs\\arcgispro-py3\\python.exe",
       "args": [
-        "C:\\{path to}\\fgdb-server-python\\fgdb_toolserver.py"
+        "C:\\{path to}\\fgdb-mcp-server\\fgdb_toolserver.py"
       ]
     }
   }
@@ -193,13 +195,22 @@ $env:FGDB_SUPPORTED_VERSIONS = "v1"
 $env:FGDB_FEATURE_EXPERIMENTAL = "false"
 ```
 
-## API Versioning
+## Version Information
+
+### Product Version
+- **Current Release**: 0.1.0
+
+### API Versioning
 
 This server currently supports **API Version 1 (v1)**. All endpoints are part of the v1 API.
 
-### Version Information
-- **Current Version**: v1
-- **Supported Versions**: v1
+**Note**: Product version (0.1.0) and API version (v1) are independent:
+- **Product version** tracks the software release (semantic versioning: major.minor.patch)
+- **API version** tracks the API contract (v1, v2, etc.) and changes when breaking API changes occur
+
+### API Version Information
+- **Current API Version**: v1
+- **Supported API Versions**: v1
 - **Deprecation Policy**: Endpoints will be marked as deprecated at least one version before removal
 
 ### Version Configuration
@@ -348,16 +359,31 @@ We welcome contributions from the open source community! This project is designe
 ```
 fgdb-mcp-server/
 ├── fgdb_toolserver.py    # Main MCP server and tool definitions
+├── fgdb_mcp_server/      # Package directory
+│   └── __init__.py       # Package initialization and main entry point
 ├── gdb_ops/
+│   ├── __init__.py
 │   ├── gdb.py            # FileGDBBackend - ArcPy operations
 │   └── gdb_tools.py      # GDBTools - Business logic layer
 ├── utils/
+│   ├── __init__.py
 │   ├── config.py         # Configuration management
 │   ├── exceptions.py     # Custom exception classes
 │   ├── safety.py         # Safety manager for confirmation workflow
+│   ├── utility.py        # Utility functions
 │   └── validation.py     # Input validation utilities
 ├── dtos/
+│   ├── __init__.py
 │   └── requestobjects.py # Data transfer objects
+├── tests/                # Test suite
+│   ├── conftest.py       # Pytest configuration
+│   ├── test_*.py         # Unit and integration tests
+│   └── README.md         # Test documentation
+├── pyproject.toml        # Project configuration and dependencies
+├── LICENSE
+├── SECURITY.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
 └── README.md
 ```
 
@@ -382,7 +408,11 @@ Please report bugs, request features, or ask questions by opening an issue on Gi
 
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License.
+
+Copyright (c) 2025 Boustead Geospatial Technologies
+
+See the [LICENSE](LICENSE) file for the full license text.
 
 ## Support
 

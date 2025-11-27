@@ -1,5 +1,7 @@
 # Test Suite for FGDB MCP Server
 
+**Version**: 0.1.0
+
 ## Overview
 
 This test suite provides comprehensive coverage for the FGDB MCP Server, including:
@@ -43,7 +45,11 @@ pytest
 ### Run with Coverage
 
 ```bash
+# Using pytest-cov (matches pyproject.toml configuration)
 pytest --cov=fgdb_toolserver --cov=gdb_ops --cov=utils --cov-report=html --cov-report=term
+
+# Or use coverage configuration from pyproject.toml
+pytest --cov --cov-report=html --cov-report=term
 ```
 
 ### Run by Test Type
@@ -88,7 +94,9 @@ The test suite uses several fixtures defined in `conftest.py`:
 - **mock_server**: Mock `FGDBMCPServer` instance
 - **mock_server_config**: Mock `ServerConfig` instance
 - **sample_connection**: Sample `Connection` object
-- **sample_operation_result_*****: Sample `OperationResult` objects for various scenarios
+- **sample_operation_result_success**: Sample successful `OperationResult` object
+- **sample_operation_result_confirmation**: Sample `OperationResult` requiring confirmation
+- **sample_operation_result_error**: Sample failed `OperationResult` object
 - **sample_pending_operation**: Sample `PendingOperation` object
 
 ## Coverage Target
