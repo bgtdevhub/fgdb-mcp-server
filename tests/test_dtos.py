@@ -18,25 +18,24 @@ class TestConnection:
     
     def test_connection_string_assignment(self):
         """Test assigning connection string."""
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test.gdb"
+        conn = Connection(connection_string="C:\\test\\test.gdb")
         assert conn.connection_string == "C:\\test\\test.gdb"
     
     def test_connection_string_update(self):
-        """Test updating connection string."""
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test1.gdb"
-        assert conn.connection_string == "C:\\test\\test1.gdb"
+        """Test creating connection with different connection strings."""
+        conn1 = Connection(connection_string="C:\\test\\test1.gdb")
+        assert conn1.connection_string == "C:\\test\\test1.gdb"
         
-        conn.connection_string = "C:\\test\\test2.gdb"
-        assert conn.connection_string == "C:\\test\\test2.gdb"
+        conn2 = Connection(connection_string="C:\\test\\test2.gdb")
+        assert conn2.connection_string == "C:\\test\\test2.gdb"
     
     def test_connection_string_none(self):
-        """Test setting connection string to None."""
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test.gdb"
-        conn.connection_string = None
-        assert conn.connection_string is None
+        """Test creating connection with None connection string."""
+        conn = Connection(connection_string="C:\\test\\test.gdb")
+        assert conn.connection_string == "C:\\test\\test.gdb"
+        
+        conn_none = Connection(connection_string=None)
+        assert conn_none.connection_string is None
 
 
 class TestOperationResult:

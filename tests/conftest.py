@@ -209,8 +209,7 @@ def mock_server(mock_server_config, fake_tools):
 @pytest.fixture
 def sample_connection():
     """Create a sample connection object."""
-    conn = Connection()
-    conn.connection_string = "C:\\test\\test.gdb"
+    conn = Connection(connection_string="C:\\test\\test.gdb")
     return conn
 
 

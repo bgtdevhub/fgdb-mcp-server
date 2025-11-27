@@ -79,8 +79,7 @@ class FGDBMCPServer:
             
             logging.info(f"Initializing tools for database: {self._current_connection}")
             try:
-                conn = Connection()
-                conn.connection_string = self._current_connection
+                conn = Connection(connection_string=self._current_connection)
                 self._tools = create_tools_from_env(conn, self.safety)
                 logging.info("Tools initialized successfully")
             except ArcPyError:

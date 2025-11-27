@@ -1,6 +1,8 @@
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
+@dataclass(frozen=True)
 class Connection:
     connection_string: Optional[str] = None
 

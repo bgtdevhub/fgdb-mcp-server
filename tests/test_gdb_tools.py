@@ -432,8 +432,7 @@ class TestCreateToolsFromEnv:
         mock_backend = Mock()
         mock_backend_class.return_value = mock_backend
         
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test.gdb"
+        conn = Connection(connection_string="C:\\test\\test.gdb")
         
         tools = create_tools_from_env(conn)
         
@@ -450,8 +449,7 @@ class TestCreateToolsFromEnv:
         mock_backend_class.return_value = mock_backend
         
         safety_manager = SafetyManager()
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test.gdb"
+        conn = Connection(connection_string="C:\\test\\test.gdb")
         
         tools = create_tools_from_env(conn, safety=safety_manager)
         
@@ -466,8 +464,7 @@ class TestCreateToolsFromEnv:
         mock_backend_class.return_value = mock_backend
         
         fake_executor = Mock(spec=CommandExecutorProtocol)
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test.gdb"
+        conn = Connection(connection_string="C:\\test\\test.gdb")
         
         tools = create_tools_from_env(conn, executor=fake_executor)
         
@@ -478,8 +475,7 @@ class TestCreateToolsFromEnv:
         """Test tool creation with invalid path."""
         mock_isdir.return_value = False
         
-        conn = Connection()
-        conn.connection_string = "invalid_path"
+        conn = Connection(connection_string="invalid_path")
         
         with pytest.raises(Exception, match="Invalid path"):
             create_tools_from_env(conn)
@@ -491,8 +487,7 @@ class TestCreateToolsFromEnv:
         mock_isdir.return_value = True
         mock_backend_class.side_effect = Exception("Backend error")
         
-        conn = Connection()
-        conn.connection_string = "C:\\test\\test.gdb"
+        conn = Connection(connection_string="C:\\test\\test.gdb")
         
         with pytest.raises(RuntimeError, match="Backend error"):
             create_tools_from_env(conn)
