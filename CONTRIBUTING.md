@@ -1,5 +1,7 @@
 # Contributing to FGDB MCP Server
 
+**Version**: 0.1.0
+
 Thank you for your interest in contributing to the FGDB MCP Server! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
@@ -172,6 +174,9 @@ pytest
 # Run with coverage
 pytest --cov=fgdb_toolserver --cov=gdb_ops --cov=utils --cov-report=html --cov-report=term
 
+# Or use coverage configuration from pyproject.toml
+pytest --cov --cov-report=html --cov-report=term
+
 # Run specific test types
 pytest -m unit          # Unit tests only
 pytest -m integration   # Integration tests only
@@ -308,23 +313,32 @@ We welcome contributions in the following areas:
 ```
 fgdb-mcp-server/
 ├── fgdb_toolserver.py    # Main MCP server and tool definitions
+├── fgdb_mcp_server/      # Package directory
+│   └── __init__.py       # Package initialization and main entry point
 ├── gdb_ops/
+│   ├── __init__.py
 │   ├── gdb.py            # FileGDBBackend - ArcPy operations
 │   └── gdb_tools.py      # GDBTools - Business logic layer
 ├── utils/
+│   ├── __init__.py
 │   ├── config.py         # Configuration management
 │   ├── exceptions.py     # Custom exception classes
 │   ├── safety.py         # Safety manager for confirmation workflow
+│   ├── utility.py        # Utility functions
 │   └── validation.py     # Input validation utilities
 ├── dtos/
+│   ├── __init__.py
 │   └── requestobjects.py # Data transfer objects
 ├── tests/                # Test suite
-│   ├── conftest.py       # Shared fixtures
-│   └── test_*.py         # Test files
-├── README.md             # Project documentation
+│   ├── conftest.py       # Pytest configuration
+│   ├── test_*.py         # Unit and integration tests
+│   └── README.md         # Test documentation
+├── pyproject.toml        # Project configuration and dependencies
+├── LICENSE
+├── SECURITY.md
+├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md       # This file
-├── CODE_OF_CONDUCT.md    # Code of conduct
-└── SECURITY.md           # Security policy
+└── README.md
 ```
 
 ### Architecture
