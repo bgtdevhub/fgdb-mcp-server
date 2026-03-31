@@ -83,6 +83,78 @@ class TestListAllFeatureClasses:
             list_all_feature_classes()
 
 
+class TestListDomains:
+    """Tests for list_domains endpoint."""
+
+    @patch('fgdb_toolserver.server')
+    def test_list_domains_success(self, mock_server):
+        """Test successful listing of domains."""
+        from fgdb_toolserver import list_domains
+
+        expected = [
+            {
+                "name": "StatusDomain",
+                "domainType": "CodedValue",
+                "codedValues": [{"value": 1, "description": "Active"}],
+            },
+            {"name": "ElevDomain", "domainType": "Range", "range": {"min": 0, "max": 100}},
+        ]
+        mock_tools = Mock()
+        mock_tools.list_domains.return_value = expected
+        mock_server.get_tools.return_value = mock_tools
+
+        result = list_domains()
+
+        assert result == expected
+        mock_tools.list_domains.assert_called_once()
+
+    @patch('fgdb_toolserver.server')
+    def test_list_domains_error(self, mock_server):
+        """Test error handling in list_domains."""
+        from fgdb_toolserver import list_domains
+
+        mock_tools = Mock()
+        mock_tools.list_domains.side_effect = Exception("Domain list error")
+        mock_server.get_tools.return_value = mock_tools
+
+        with pytest.raises(Exception, match="Domain list error"):
+            list_domains()
+
+
+class TestListDatasetsByDomain:
+    """Tests for list_datasets_by_domain endpoint."""
+
+    @patch('fgdb_toolserver.server')
+    def test_list_datasets_by_domain_success(self, mock_server):
+        """Test successful listing of datasets by domain."""
+        from fgdb_toolserver import list_datasets_by_domain
+
+        expected = [
+            {"dataset": "Hydrants", "fields": ["ArchiveFlag"]},
+            {"dataset": "LookupTable", "fields": ["ArchiveFlag"]},
+        ]
+        mock_tools = Mock()
+        mock_tools.list_datasets_by_domain.return_value = expected
+        mock_server.get_tools.return_value = mock_tools
+
+        result = list_datasets_by_domain(domain="PUBArchive")
+
+        assert result == expected
+        mock_tools.list_datasets_by_domain.assert_called_once_with("PUBArchive")
+
+    @patch('fgdb_toolserver.server')
+    def test_list_datasets_by_domain_error(self, mock_server):
+        """Test error handling in list_datasets_by_domain."""
+        from fgdb_toolserver import list_datasets_by_domain
+
+        mock_tools = Mock()
+        mock_tools.list_datasets_by_domain.side_effect = Exception("Domain search error")
+        mock_server.get_tools.return_value = mock_tools
+
+        with pytest.raises(Exception, match="Domain search error"):
+            list_datasets_by_domain(domain="PUBArchive")
+
+
 class TestDescribe:
     """Tests for describe endpoint."""
     
