@@ -241,7 +241,30 @@ class TestGDBTools:
         assert isinstance(result, list)
         assert len(result) > 0
         assert "Sewerage\\SewerageLine" in result
-    
+
+    def test_list_domains(self, fake_tools):
+        """Test listing all domains."""
+        result = fake_tools.list_domains()
+        
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]["name"] == "StatusDomain"
+        assert result[0]["domainType"] == "CodedValue"
+        assert result[0]["codedValues"] == [
+            {"value": 1, "description": "Active"},
+            {"value": 2, "description": "Inactive"},
+        ]
+        assert result[1]["name"] == "ElevationDomain"
+        assert result[1]["domainType"] == "Range"
+        assert result[1]["range"] == {"min": 0.0, "max": 1000.0}
+
+    def test_list_datasets_by_domain(self, fake_tools):
+        """Test listing datasets by domain."""
+        result = fake_tools.list_datasets_by_domain("StatusDomain")
+        assert result == [{"dataset": "TestDataset", "fields": ["Name"]}]
+        result_empty = fake_tools.list_datasets_by_domain("NonExistentDomain")
+        assert result_empty == []
+
     def test_describe(self, fake_tools):
         """Test describing a dataset."""
         result = fake_tools.describe("TestDataset")
@@ -470,14 +493,16 @@ class TestCreateToolsFromEnv:
         
         assert tools.executor == fake_executor
     
+    @patch('gdb_ops.gdb_tools.os.path.isfile')
     @patch('gdb_ops.gdb_tools.os.path.isdir')
-    def test_create_tools_from_env_invalid_path(self, mock_isdir):
-        """Test tool creation with invalid path."""
+    def test_create_tools_from_env_invalid_path(self, mock_isdir, mock_isfile):
+        """Test tool creation with invalid path raises ValueError."""
         mock_isdir.return_value = False
-        
+        mock_isfile.return_value = False
+
         conn = Connection(connection_string="invalid_path")
-        
-        with pytest.raises(Exception, match="Invalid path"):
+
+        with pytest.raises(ValueError, match="Invalid workspace path"):
             create_tools_from_env(conn)
     
     @patch('gdb_ops.gdb_tools.FileGDBBackend')
@@ -486,9 +511,34 @@ class TestCreateToolsFromEnv:
         """Test tool creation when backend creation fails."""
         mock_isdir.return_value = True
         mock_backend_class.side_effect = Exception("Backend error")
-        
+
         conn = Connection(connection_string="C:\\test\\test.gdb")
-        
+
         with pytest.raises(RuntimeError, match="Backend error"):
             create_tools_from_env(conn)
+
+    def test_create_tools_from_env_empty_connection_string(self):
+        """Test tool creation with empty connection string raises ValueError."""
+        conn = Connection(connection_string="")
+
+        with pytest.raises(ValueError, match="cannot be empty"):
+            create_tools_from_env(conn)
+
+    @patch('gdb_ops.gdb_tools.FileGDBBackend')
+    @patch('gdb_ops.gdb_tools.os.path.isfile')
+    @patch('gdb_ops.gdb_tools.os.path.isdir')
+    def test_create_tools_from_env_sde_path_success(self, mock_isdir, mock_isfile, mock_backend_class):
+        """Test successful tool creation with SDE connection file path."""
+        mock_isdir.return_value = False
+        mock_isfile.return_value = True
+        mock_backend = Mock()
+        mock_backend_class.return_value = mock_backend
+
+        conn = Connection(connection_string="C:\\Connection Files\\Dev_WsnGis_unowner.sde")
+
+        tools = create_tools_from_env(conn)
+
+        assert tools is not None
+        assert tools.backend == mock_backend
+        mock_backend_class.assert_called_once_with(gdb_path="C:\\Connection Files\\Dev_WsnGis_unowner.sde")
 

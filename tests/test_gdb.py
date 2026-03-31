@@ -395,7 +395,188 @@ class TestFileGDBBackend:
         assert "FC1" in result
         assert "FC2" in result
         workspace_manager.set_workspace.assert_called()
-    
+
+    @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
+    @patch('gdb_ops.gdb.arcpy')
+    @patch('gdb_ops.gdb.os')
+    def test_list_all_feature_classes_sde_style(self, mock_os, mock_arcpy):
+        """Test listing feature classes with SDE workspace (qualified names)."""
+        def mock_join(*args):
+            return "\\".join(args)
+        mock_os.path.join.side_effect = mock_join
+        mock_os.sep = "\\"
+
+        sde_root = "C:\\Connection Files\\Dev_WsnGis_unowner.sde"
+        mock_arcpy.da.Walk.return_value = [
+            (sde_root, [], ["WSNGIS.UNOWNER.Hydrants", "WSNGIS.UNOWNER.Mains"])
+        ]
+
+        workspace_manager = Mock(spec=WorkspaceManagerProtocol)
+        workspace_manager.ensure_arcpy_available = Mock()
+        workspace_manager.set_workspace = Mock()
+
+        backend = FileGDBBackend(gdb_path=sde_root)
+        backend.workspace_manager = workspace_manager
+
+        result = backend.list_all_feature_classes()
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert "WSNGIS.UNOWNER.Hydrants" in result
+        assert "WSNGIS.UNOWNER.Mains" in result
+        workspace_manager.set_workspace.assert_called()
+
+    @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
+    @patch('gdb_ops.gdb.arcpy')
+    def test_list_domains_coded_value_and_range(self, mock_arcpy):
+        """Test listing domains with CodedValue and Range types."""
+        coded_domain = Mock()
+        coded_domain.name = "StatusDomain"
+        coded_domain.domainType = "CodedValue"
+        coded_domain.codedValues = {1: "Active", 2: "Inactive"}
+        coded_domain.range = None
+
+        range_domain = Mock()
+        range_domain.name = "ElevationDomain"
+        range_domain.domainType = "Range"
+        range_domain.codedValues = None
+        range_domain.range = [0.0, 1000.0]
+
+        mock_arcpy.da.ListDomains.return_value = [coded_domain, range_domain]
+
+        workspace_manager = Mock(spec=WorkspaceManagerProtocol)
+        workspace_manager.ensure_arcpy_available = Mock()
+        workspace_manager.set_workspace = Mock()
+
+        backend = FileGDBBackend(gdb_path="C:\\test\\test.gdb")
+        backend.workspace_manager = workspace_manager
+
+        result = backend.list_domains()
+
+        assert len(result) == 2
+        assert result[0]["name"] == "StatusDomain"
+        assert result[0]["domainType"] == "CodedValue"
+        assert result[0]["codedValues"] == [
+            {"value": 1, "description": "Active"},
+            {"value": 2, "description": "Inactive"},
+        ]
+        assert result[1]["name"] == "ElevationDomain"
+        assert result[1]["domainType"] == "Range"
+        assert result[1]["range"] == {"min": 0.0, "max": 1000.0}
+        workspace_manager.set_workspace.assert_called()
+
+    @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
+    @patch('gdb_ops.gdb.arcpy')
+    def test_list_domains_empty(self, mock_arcpy):
+        """Test listing domains when geodatabase has no domains."""
+        mock_arcpy.da.ListDomains.return_value = []
+
+        workspace_manager = Mock(spec=WorkspaceManagerProtocol)
+        workspace_manager.ensure_arcpy_available = Mock()
+        workspace_manager.set_workspace = Mock()
+
+        backend = FileGDBBackend(gdb_path="C:\\test\\test.gdb")
+        backend.workspace_manager = workspace_manager
+
+        result = backend.list_domains()
+
+        assert result == []
+
+    @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
+    @patch('gdb_ops.gdb.arcpy')
+    def test_list_domains_none_return(self, mock_arcpy):
+        """Test listing domains when ListDomains returns None."""
+        mock_arcpy.da.ListDomains.return_value = None
+
+        workspace_manager = Mock(spec=WorkspaceManagerProtocol)
+        workspace_manager.ensure_arcpy_available = Mock()
+        workspace_manager.set_workspace = Mock()
+
+        backend = FileGDBBackend(gdb_path="C:\\test\\test.gdb")
+        backend.workspace_manager = workspace_manager
+
+        result = backend.list_domains()
+
+        assert result == []
+
+    @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
+    @patch('gdb_ops.gdb.arcpy')
+    def test_list_datasets_by_domain(self, mock_arcpy):
+        """Test listing datasets (FCs/tables) that have a field using the given domain."""
+        # Root-level: one FC and one table with a field using PUBArchive
+        field_with_domain = Mock()
+        field_with_domain.name = "ArchiveFlag"
+        field_with_domain.domain = "PUBArchive"
+        field_other = Mock()
+        field_other.name = "Other"
+        field_other.domain = None
+
+        def list_fields_side_effect(ds_path):
+            if ds_path == "Hydrants":
+                return [field_with_domain, field_other]
+            if ds_path == "LookupTable":
+                return [field_with_domain]
+            return []
+
+        mock_arcpy.ListFeatureClasses.return_value = ["Hydrants"]
+        mock_arcpy.ListTables.return_value = ["LookupTable"]
+        mock_arcpy.ListDatasets.return_value = []
+        mock_arcpy.ListFields.side_effect = list_fields_side_effect
+
+        workspace_manager = Mock(spec=WorkspaceManagerProtocol)
+        workspace_manager.ensure_arcpy_available = Mock()
+        workspace_manager.set_workspace = Mock()
+
+        backend = FileGDBBackend(gdb_path="C:\\test\\test.gdb")
+        backend.workspace_manager = workspace_manager
+
+        result = backend.list_datasets_by_domain("PUBArchive")
+
+        assert len(result) == 2
+        datasets = {r["dataset"]: r["fields"] for r in result}
+        assert datasets["Hydrants"] == ["ArchiveFlag"]
+        assert datasets["LookupTable"] == ["ArchiveFlag"]
+        workspace_manager.set_workspace.assert_called()
+
+    @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
+    @patch('gdb_ops.gdb.arcpy')
+    def test_list_datasets_by_domain_in_feature_dataset(self, mock_arcpy):
+        """Test listing datasets by domain includes FCs inside feature datasets."""
+        field_with_domain = Mock()
+        field_with_domain.name = "Status"
+        field_with_domain.domain = "StatusDomain"
+
+        def list_fields_side_effect(ds_path):
+            if ds_path == "Parcels\\ParcelPts":
+                return [field_with_domain]
+            return []
+
+        def list_fc_side_effect(*args, **kwargs):
+            # Root call: ListFeatureClasses() -> []; 3-arg call: ListFeatureClasses('', '', ds)
+            if len(args) == 0 and not kwargs:
+                return []
+            if len(args) >= 3 and args[2] == "Parcels":
+                return ["ParcelPts"]
+            return []
+
+        mock_arcpy.ListFeatureClasses.side_effect = list_fc_side_effect
+        mock_arcpy.ListTables.return_value = []
+        mock_arcpy.ListDatasets.return_value = ["Parcels"]
+        mock_arcpy.ListFields.side_effect = list_fields_side_effect
+
+        workspace_manager = Mock(spec=WorkspaceManagerProtocol)
+        workspace_manager.ensure_arcpy_available = Mock()
+        workspace_manager.set_workspace = Mock()
+
+        backend = FileGDBBackend(gdb_path="C:\\test\\test.gdb")
+        backend.workspace_manager = workspace_manager
+
+        result = backend.list_datasets_by_domain("StatusDomain")
+
+        assert len(result) == 1
+        assert "Parcels" in result[0]["dataset"] and "ParcelPts" in result[0]["dataset"]
+        assert result[0]["fields"] == ["Status"]
+
     @patch('gdb_ops.gdb.ARCPY_AVAILABLE', True)
     @patch('gdb_ops.gdb.arcpy')
     @patch('gdb_ops.gdb.validate_dataset')

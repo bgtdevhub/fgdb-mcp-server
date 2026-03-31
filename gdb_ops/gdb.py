@@ -75,6 +75,14 @@ class GDBBackendProtocol(Protocol):
         """Delete a field from a dataset schema."""
         ...
 
+    def list_domains(self) -> List[Dict[str, Any]]:
+        """List all domains in the geodatabase with their details."""
+        ...
+
+    def list_datasets_by_domain(self, domain_name: str) -> List[Dict[str, Any]]:
+        """List all feature classes and tables that have at least one field using the given domain."""
+        ...
+
 
 # ============================================================================
 # Service Protocols for Dependency Injection
@@ -463,7 +471,7 @@ class FileGDBBackend:
         self.workspace_manager.set_workspace(self.gdb_path)
     
     def list_all_feature_classes(self) -> List[str]:
-        """List all feature classes in the geodatabase."""
+        """List all feature classes in the geodatabase (FGDB or SDE)."""
         self.workspace_manager.ensure_arcpy_available()
         self._set_workspace()
         walk = arcpy.da.Walk(self.gdb_path, datatype="FeatureClass")
@@ -472,8 +480,61 @@ class FileGDBBackend:
             for root, data_sets, feature_classes in walk
             for feature_class in feature_classes
         ]
-        return [fc.split(".gdb")[1][1:] for fc in fc_list or []]
-    
+        # Workspace-agnostic: relative path from workspace root (works for .gdb and .sde)
+        _seps = "\\/"  # support both Windows and Unix, and mocked os
+        workspace_root = self.gdb_path.rstrip(_seps)
+        result = []
+        for full_path in fc_list or []:
+            if full_path.startswith(workspace_root):
+                rel = full_path[len(workspace_root) :].lstrip(_seps)
+                if rel:
+                    result.append(rel)
+            else:
+                result.append(full_path)
+        return result
+
+    def list_domains(self) -> List[Dict[str, Any]]:
+        """List all domains in the geodatabase with name, type, and values or range."""
+        self.workspace_manager.ensure_arcpy_available()
+        self._set_workspace()
+        domains = arcpy.da.ListDomains(self.gdb_path)
+        result = []
+        for domain in domains or []:
+            d: Dict[str, Any] = {
+                "name": domain.name,
+                "domainType": domain.domainType,
+            }
+            if domain.domainType == "CodedValue":
+                d["codedValues"] = [
+                    {"value": val, "description": desc}
+                    for val, desc in (domain.codedValues or {}).items()
+                ]
+            elif domain.domainType == "Range":
+                r = domain.range or [None, None]
+                d["range"] = {"min": r[0], "max": r[1]}
+            result.append(d)
+        return result
+
+    def list_datasets_by_domain(self, domain_name: str) -> List[Dict[str, Any]]:
+        """List all feature classes and tables (including inside feature datasets) that have at least one field using the given domain."""
+        self.workspace_manager.ensure_arcpy_available()
+        self._set_workspace()
+        result: List[Dict[str, Any]] = []
+        candidates = list(arcpy.ListFeatureClasses() or []) + list(arcpy.ListTables() or [])
+        for ds_path in candidates:
+            fields = list(arcpy.ListFields(ds_path) or [])
+            matching = [f.name for f in fields if getattr(f, "domain", None) == domain_name]
+            if matching:
+                result.append({"dataset": ds_path, "fields": matching})
+        for ds in arcpy.ListDatasets("", "Feature") or []:
+            for fc in arcpy.ListFeatureClasses("", "", ds) or []:
+                path = os.path.join(ds, fc)
+                fields = list(arcpy.ListFields(path) or [])
+                matching = [f.name for f in fields if getattr(f, "domain", None) == domain_name]
+                if matching:
+                    result.append({"dataset": path, "fields": matching})
+        return result
+
     def describe(self, dataset: str) -> Dict[str, Any]:
         """Get metadata and schema information for a dataset."""
         self.workspace_manager.ensure_arcpy_available()
