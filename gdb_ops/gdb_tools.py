@@ -147,6 +147,12 @@ class GDBTools:
     def list_all_feature_classes(self) -> List[str]:
         return self.backend.list_all_feature_classes()
 
+    def list_domains(self) -> List[Dict[str, Any]]:
+        return self.backend.list_domains()
+
+    def list_datasets_by_domain(self, domain_name: str) -> List[Dict[str, Any]]:
+        return self.backend.list_datasets_by_domain(domain_name)
+
     def describe(self, dataset: str) -> Dict[str, Any]:
         return self.backend.describe(dataset)
 
@@ -268,32 +274,63 @@ class GDBTools:
         return self.executor.execute(command, confirmed_token)
 
 
+def _is_valid_fgdb_path(path: str) -> bool:
+    """Return True if path is a valid file geodatabase (directory ending in .gdb)."""
+    return bool(
+        path
+        and path.strip().lower().endswith(".gdb")
+        and os.path.isdir(path)
+    )
+
+
+def _is_valid_sde_path(path: str) -> bool:
+    """Return True if path is a valid SDE connection file (file ending in .sde)."""
+    return bool(
+        path
+        and path.strip().lower().endswith(".sde")
+        and os.path.isfile(path)
+    )
+
+
 def create_tools_from_env(
-    connection: Connection, 
+    connection: Connection,
     safety: Optional[SafetyManager] = None,
-    executor: Optional[CommandExecutorProtocol] = None
+    executor: Optional[CommandExecutorProtocol] = None,
 ) -> GDBTools:
     """Factory function to create GDBTools with dependencies.
-    
+
+    Accepts either a file geodatabase path (directory ending in .gdb) or an
+    SDE connection file path (file ending in .sde). ArcPy uses the path as the
+    workspace; the .sde file is not read or parsed by this code.
+
     Args:
-        connection: Connection object with geodatabase path
+        connection: Connection object with geodatabase or SDE path
         safety: Optional SafetyManager (creates default if not provided)
         executor: Optional CommandExecutorProtocol (creates default if not provided)
-        
+
     Returns:
         Configured GDBTools instance
+
+    Raises:
+        ValueError: If connection string is not a valid .gdb or .sde path
+        RuntimeError: If backend initialization fails
     """
     safety_manager = safety or SafetyManager()
-    gdb_path = connection.connection_string
-    if not gdb_path or not os.path.isdir(gdb_path) or not gdb_path.lower().endswith(".gdb"):
-        raise Exception("Invalid path to gdb")
-    
-    if gdb_path:
-        try:
-            backend = FileGDBBackend(gdb_path=gdb_path)
-            tools = GDBTools(backend=backend, safety=safety_manager)
-            if executor is not None:
-                tools.executor = executor
-            return tools
-        except Exception as ex:
-            raise RuntimeError(ex)
+    workspace_path = (connection.connection_string or "").strip()
+    if not workspace_path:
+        raise ValueError("Connection string cannot be empty")
+
+    if not _is_valid_fgdb_path(workspace_path) and not _is_valid_sde_path(workspace_path):
+        raise ValueError(
+            "Invalid workspace path: must be either (1) a file geodatabase directory "
+            "ending in .gdb, or (2) an SDE connection file ending in .sde"
+        )
+
+    try:
+        backend = FileGDBBackend(gdb_path=workspace_path)
+        tools = GDBTools(backend=backend, safety=safety_manager)
+        if executor is not None:
+            tools.executor = executor
+        return tools
+    except Exception as ex:
+        raise RuntimeError(ex) from ex

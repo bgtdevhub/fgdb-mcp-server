@@ -39,10 +39,34 @@ class FakeGDBBackend:
         self.insert_count = 0
         self.update_count = 0
         self.delete_count = 0
+        self.domains: List[Dict[str, Any]] = [
+            {
+                "name": "StatusDomain",
+                "domainType": "CodedValue",
+                "codedValues": [
+                    {"value": 1, "description": "Active"},
+                    {"value": 2, "description": "Inactive"},
+                ],
+            },
+            {
+                "name": "ElevationDomain",
+                "domainType": "Range",
+                "range": {"min": 0.0, "max": 1000.0},
+            },
+        ]
     
     def list_all_feature_classes(self) -> List[str]:
         return self.feature_classes
     
+    def list_domains(self) -> List[Dict[str, Any]]:
+        return self.domains
+
+    def list_datasets_by_domain(self, domain_name: str) -> List[Dict[str, Any]]:
+        # Fake: TestDataset has a field "Name" that uses "StatusDomain"
+        if domain_name == "StatusDomain":
+            return [{"dataset": "TestDataset", "fields": ["Name"]}]
+        return []
+
     def describe(self, dataset: str) -> Dict[str, Any]:
         if dataset not in self.datasets:
             raise ValueError(f"Dataset '{dataset}' does not exist")

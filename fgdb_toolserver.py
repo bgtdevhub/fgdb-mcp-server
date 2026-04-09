@@ -106,12 +106,19 @@ mcp = FastMCP("fgdb-mcp-server")
 
 # Module-level functions that FastMCP can call - they access the server instance
 @mcp.tool(
-    description=f"Establishes a connection to the given FGDB path. Requires a full absolute path. [API Version: {API_VERSION}]"
+    description=f"Establishes a connection to a file geodatabase (.gdb) or SDE connection file (.sde). "
+    f"Requires a full absolute path: either a directory ending in .gdb or a file ending in .sde. [API Version: {API_VERSION}]"
 )
 def set_database_connection(
-    gdb_path: Annotated[str, Field(description="Full absolute path to the file geodatabase", examples=["C:\\data\\mygeodatabase.gdb"])]
+    gdb_path: Annotated[
+        str,
+        Field(
+            description="Full absolute path to the file geodatabase (directory .gdb) or SDE connection file (file .sde)",
+            examples=["C:\\data\\mygeodatabase.gdb", "C:\\Connection Files\\server.sde"],
+        ),
+    ]
 ) -> Dict[str, str]:
-    logging.info(f"Setting database connection string to: {gdb_path}")
+    logging.info(f"Setting database connection to: {gdb_path}")
     try:
         tools = server.get_tools(gdb_path)
         if tools:
@@ -138,6 +145,39 @@ def list_all_feature_classes() -> List[str]:
         return result
     except Exception as ex:
         logging.error(f"Error listing feature classes: {ex}")
+        raise
+
+
+@mcp.tool(
+    description=f"Lists all domains in the connected file geodatabase with their details (name, type, coded values or range). [API Version: {API_VERSION}]"
+)
+def list_domains() -> List[Dict[str, Any]]:
+    logging.info("Listing all domains")
+    try:
+        result = server.get_tools().list_domains()
+        logging.info(f"Found {len(result)} domains")
+        return result
+    except Exception as ex:
+        logging.error(f"Error listing domains: {ex}")
+        raise
+
+
+@mcp.tool(
+    description=f"Lists all feature classes and tables (including inside feature datasets) that have at least one field using the given domain. Returns dataset path and field names for each match. [API Version: {API_VERSION}]"
+)
+def list_datasets_by_domain(
+    domain: Annotated[
+        str,
+        Field(description="Domain name to search for (e.g. PUBArchive, StatusDomain)"),
+    ]
+) -> List[Dict[str, Any]]:
+    logging.info(f"Listing datasets by domain: {domain}")
+    try:
+        result = server.get_tools().list_datasets_by_domain(domain)
+        logging.info(f"Found {len(result)} dataset(s) using domain {domain}")
+        return result
+    except Exception as ex:
+        logging.error(f"Error listing datasets by domain {domain}: {ex}")
         raise
 
 

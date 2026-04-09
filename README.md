@@ -1,6 +1,6 @@
 # FGDB MCP Server
 
-A Model Context Protocol (MCP) server for interacting with Esri File Geodatabases (FGDB) through ArcPy. This server provides a comprehensive set of tools for querying, modifying, and managing geodatabase datasets via the MCP protocol.
+A Model Context Protocol (MCP) server for interacting with Esri file geodatabases (FGDB) and enterprise geodatabases (via SDE connection files) through ArcPy. This server provides tools for querying, modifying, and managing geodatabase datasets via the MCP protocol.
 
 **Version**: 0.1.0
 
@@ -21,11 +21,12 @@ See the [MCP Quickstart](https://modelcontextprotocol.io/quickstart) tutorial fo
 
 ## Features
 
-- **Connection Management**: Establish and manage connections to File Geodatabases
+- **Connection Management**: Connect to a file geodatabase (`.gdb` directory) or an enterprise geodatabase using a full absolute path to an SDE connection file (`.sde`)
 - **Data Querying**: Query feature classes and tables with filtering, field selection, and pagination
 - **Data Modification**: Insert, update, and delete records with safety confirmation workflows
 - **Schema Management**: Add and delete fields from datasets
 - **Metadata Operations**: List feature classes, describe datasets, and count records
+- **Domains**: List all geodatabase domains (coded values or ranges) and find feature classes and tables whose fields use a given domain
 - **Safety System**: Built-in confirmation workflow for high-risk operations
 - **Comprehensive Logging**: Configurable logging with rotation support
 - **Error Handling**: Standardized exception handling with custom error types
@@ -129,9 +130,12 @@ The server runs as an MCP server using stdio transport, which allows it to be us
 
 ### Example Workflow
 
-1. **Connect to a geodatabase**:
+1. **Connect to a geodatabase** (file GDB or SDE connection file):
    ```
    set_database_connection(gdb_path="C:\\data\\mygeodatabase.gdb")
+   ```
+   ```
+   set_database_connection(gdb_path="C:\\Connection Files\\server.sde")
    ```
 
 2. **List available feature classes**:
@@ -139,12 +143,18 @@ The server runs as an MCP server using stdio transport, which allows it to be us
    list_all_feature_classes()
    ```
 
-3. **Query data**:
+3. **Inspect domains** (optional):
+   ```
+   list_domains()
+   list_datasets_by_domain(domain="StatusDomain")
+   ```
+
+4. **Query data**:
    ```
    select(dataset="MyFeatureClass", where="OBJECTID > 100", limit=100, page=1)
    ```
 
-4. **Modify data** (with confirmation):
+5. **Modify data** (with confirmation):
    ```
    # First attempt - returns confirmation token
    insert(dataset="MyFeatureClass", rows=1, fields=["Name"], values=["Test"])
@@ -254,7 +264,7 @@ $env:FGDB_FEATURE_EXPERIMENTAL = "true"
 
 ## API Reference
 
-The server provides 11 MCP tools for geodatabase operations:
+The server provides 13 MCP tools for geodatabase operations:
 
 ### API Version 1 (v1) - Current
 
@@ -262,10 +272,15 @@ All endpoints below are part of the v1 API:
 
 ### Connection & Discovery
 
-- **`set_database_connection`** (v1): Establishes a connection to a File Geodatabase using an absolute path
+- **`set_database_connection`** (v1): Establishes a connection using a full absolute path to either a file geodatabase (directory ending in `.gdb`) or an SDE connection file (file ending in `.sde`). ArcPy uses that path as the workspace.
 - **`list_all_feature_classes`** (v1): Lists all feature classes available in the connected geodatabase
 - **`describe`** (v1): Returns metadata and schema information for a specified dataset (feature class or table)
 - **`count`** (v1): Returns the total number of records in a specified dataset
+
+### Domains
+
+- **`list_domains`** (v1): Lists all domains in the connected geodatabase with details (name, type, coded values or numeric range)
+- **`list_datasets_by_domain`** (v1): Lists feature classes and tables (including inside feature datasets) that have at least one field assigned the given domain; returns dataset paths and matching field names
 
 ### Data Querying
 
